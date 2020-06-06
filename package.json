@@ -4,7 +4,7 @@
   "description": "find bands four your events or a band member for your musition band",
   "main": "app.js",
   "scripts": {
-    "start:dev": "nodemon server.js",
+    "start": "nodemon server.js",
     "start:prod": "NODE_ENV=production nodemon server.js"
   },
   "author": "Ahmed Oublihi",
@@ -12,7 +12,11 @@
   "dependencies": {
     "dotenv": "^7.0.0",
     "express": "^4.16.4",
-    "morgan": "^1.9.1"
+    "mongoose": "^5.9.17",
+    "morgan": "^1.9.1",
+    "nodemon": "^2.0.4",
+    "slugify": "^1.4.0",
+    "validator": "^13.0.0"
   },
   "devDependencies": {
     "eslint": "^5.16.0",

@@ -1,92 +1,208 @@
-const fs = require('fs');
+const Band = require('./../models/bandModel');
+const APIFeatures = require('./../utils/apiFeatures');
 
-const bands = JSON.parse(
-  fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`)
-);
-
-exports.checkID = (req, res, next, val) => {
-  console.log(`Band id is: ${val}`);
-
-  if (req.params.id * 1 > bands.length) {
-    return res.status(404).json({
-      status: 'fail',
-      message: 'Invalid ID'
-    });
-  }
+// Get Top Sheap bands
+exports.aliasTopBands = (req, res, next) => {
+  req.query.limit = '6';
+  req.query.sort = '-ratingsAverage,price';
+  req.query.fields = 'name,price,ratingsAverage,summary,gener';
   next();
 };
 
-exports.checkBody = (req, res, next) => {
-  if (!req.body.name || !req.body.price) {
-    return res.status(400).json({
+// Get All Bands
+exports.getAllBands = async (req, res) => {
+  try {
+    // EXECUTE QUERY
+    const features = new APIFeatures(Band.find(), req.query)
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
+    const bands = await features.query;
+
+    // SEND RESPONSE
+    res.status(200).json({
+      status: 'success',
+      results: bands.length,
+      data: {
+        bands
+      }
+    });
+  } catch (err) {
+    res.status(404).json({
       status: 'fail',
-      message: 'Missing name or price'
+      message: err
     });
   }
-  next();
 };
 
-exports.getAllBands = (req, res) => {
-  console.log(req.requestTime);
+exports.getBand = async (req, res) => {
+  try {
+    const band = await Band.findById(req.params.id);
+    // Band.findOne({ _id: req.params.id })
 
-  res.status(200).json({
-    status: 'success',
-    requestedAt: req.requestTime,
-    results: bands.length,
-    data: {
-      bands
-    }
-  });
+    res.status(200).json({
+      status: 'success',
+      data: {
+        band
+      }
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err
+    });
+  }
 };
 
-exports.getBand = (req, res) => {
-  console.log(req.params);
-  const id = req.params.id * 1;
+exports.createBand = async (req, res) => {
+  try {
+    // const newBand = new Band({})
+    // newBand.save()
 
-  const tour = bands.find(el => el.id === id);
+    const newBand = await Band.create(req.body);
 
-  res.status(200).json({
-    status: 'success',
-    data: {
-      tour
-    }
-  });
+    res.status(201).json({
+      status: 'success',
+      data: {
+        band: newBand
+      }
+    });
+  } catch (err) {
+    res.status(400).json({
+      status: 'fail',
+      message: err
+    });
+  }
 };
 
-exports.createBand = (req, res) => {
-  // console.log(req.body);
+exports.updateBand = async (req, res) => {
+  try {
+    const band = await Band.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    });
 
-  const newId = bands[bands.length - 1].id + 1;
-  const newTour = Object.assign({ id: newId }, req.body);
+    res.status(200).json({
+      status: 'success',
+      data: {
+        band
+      }
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err
+    });
+  }
+};
 
-  bands.push(newTour);
+exports.deleteBand = async (req, res) => {
+  try {
+    await Band.findByIdAndDelete(req.params.id);
 
-  fs.writeFile(
-    `${__dirname}/dev-data/data/tours-simple.json`,
-    JSON.stringify(bands),
-    err => {
-      res.status(201).json({
-        status: 'success',
-        data: {
-          tour: newTour
+    res.status(204).json({
+      status: 'success',
+      data: null
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err
+    });
+  }
+};
+
+// Get Band Statistics
+exports.getBandStats = async (req, res) => {
+  try {
+    const stats = await Band.aggregate([
+      {
+        $match: { ratingsAverage: { $gte: 4.5 } }
+      },
+      {
+        $group: {
+          _id: { $toUpper: '$gener' },
+          numBands: { $sum: 1 },
+          numRatings: { $sum: '$ratingsQuantity' },
+          avgRating: { $avg: '$ratingsAverage' },
+          avgPrice: { $avg: '$price' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' }
         }
-      });
-    }
-  );
+      },
+      {
+        $sort: { avgPrice: 1 }
+      }
+      // {
+      //   $match: { _id: { $ne: 'EASY' } }
+      // }
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        stats
+      }
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err
+    });
+  }
 };
 
-exports.updateBand = (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    data: {
-      tour: '<Updated tour here...>'
-    }
-  });
-};
+// Get monthly Booked bands
+exports.getMonthlyPlan = async (req, res) => {
+  try {
+    const year = req.params.year * 1; // 2021
 
-exports.deleteBand = (req, res) => {
-  res.status(204).json({
-    status: 'success',
-    data: null
-  });
+    const plan = await Band.aggregate([
+      {
+        $unwind: '$startDates'
+      },
+      {
+        $match: {
+          startDates: {
+            $gte: new Date(`${year}-01-01`),
+            $lte: new Date(`${year}-12-31`)
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $month: '$startDates' },
+          numBandStarts: { $sum: 1 },
+          bands: { $push: '$name' }
+        }
+      },
+      {
+        $addFields: { month: '$_id' }
+      },
+      {
+        $project: {
+          _id: 0
+        }
+      },
+      {
+        $sort: { numBandStarts: -1 }
+      },
+      {
+        $limit: 12
+      }
+    ]);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        plan
+      }
+    });
+  } catch (err) {
+    res.status(404).json({
+      status: 'fail',
+      message: err
+    });
+  }
 };
