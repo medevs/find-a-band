@@ -1,5 +1,6 @@
 const AppError = require('./../utils/appError');
 
+// Database Errors
 const handleCastErrorDB = err => {
   const message = `Invalid ${err.path}: ${err.value}.`;
   return new AppError(message, 400);
@@ -19,6 +20,14 @@ const handleValidationErrorDB = err => {
   return new AppError(message, 400);
 };
 
+// JWT Errors
+const handleJWTError = () =>
+  new AppError('Invalid token! Please login again.', 401);
+
+const handleJWTExpiredError = () =>
+  new AppError('Your session has expired! Please login again.', 401);
+
+// Send Development Errors
 const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
     status: err.status,
@@ -28,6 +37,7 @@ const sendErrorDev = (err, res) => {
   });
 };
 
+// Send Production Errors
 const sendErrorProd = (err, res) => {
   // Operational, trusted error: send message to client
   if (err.isOperational) {
@@ -36,7 +46,7 @@ const sendErrorProd = (err, res) => {
       message: err.message
     });
 
-    // Programming or other unknown error: don't leak error details
+    // Programming or other unknown error.
   } else {
     // Log error
     console.error('ERROR!', err);
@@ -60,10 +70,15 @@ module.exports = (err, req, res, next) => {
   } else if (process.env.NODE_ENV === 'production') {
     let error = { ...err };
 
+    // Check For Database Error
     if (error.name === 'CastError') error = handleCastErrorDB(error);
     if (error.code === 11000) error = handleDuplicateFieldsDB(error);
     if (error.name === 'ValidationError')
       error = handleValidationErrorDB(error);
+
+    // Check For JWT Errors
+    if (error.name === 'JsonWebTokenError') error = handleJWTError();
+    if (error.name === 'TokenExpiredError') error = handleJWTExpiredError();
 
     sendErrorProd(error, res);
   }

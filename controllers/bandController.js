@@ -4,7 +4,7 @@ const APIFeatures = require('./../utils/apiFeatures');
 const catchAsync = require('./../utils/catchAsync');
 const appError = require('./../utils/appError');
 
-// Get Top Sheap bands
+// Get Top Sheap 6 bands
 exports.aliasTopBands = (req, res, next) => {
   req.query.limit = '6';
   req.query.sort = '-ratingsAverage,price';

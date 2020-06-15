@@ -27,7 +27,7 @@ const bandSchema = new mongoose.Schema(
       required: [true, 'A band must have a gener'],
       enum: {
         values: ['rock', 'blues', 'pop', 'rap'],
-        // message: 'gener is either: easy, medium, difficult'
+        message: 'gener is either: rock, blues...'
       }
     },
     ratingsAverage: {
