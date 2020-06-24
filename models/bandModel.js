@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const slugify = require('slugify');
+const User = require('./userModel');
 // const validator = require('validator');
 
 const bandSchema = new mongoose.Schema(
@@ -18,7 +19,7 @@ const bandSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'A band must have a duration']
     },
-    GroupSize: {
+    groupSize: {
       type: Number,
       required: [true, 'A band must have a group size']
     },
@@ -26,7 +27,7 @@ const bandSchema = new mongoose.Schema(
       type: String,
       required: [true, 'A band must have a gener'],
       enum: {
-        values: ['rock', 'blues', 'pop', 'rap'],
+        values: ['rock', 'blues', 'jazz'],
         message: 'gener is either: rock, blues...'
       }
     },
@@ -77,7 +78,38 @@ const bandSchema = new mongoose.Schema(
     secretBand: {
       type: Boolean,
       default: false
-    }
+    },
+    playLocation: {
+      // GeoJSON
+      type: {
+        type: String,
+        default: 'Point',
+        enum: ['Point']
+      },
+      coordinates: [Number],
+      address: String,
+      description: String
+    },
+    locations: [
+      {
+        type: {
+          type: String,
+          default: 'Point',
+          enum: ['Point']
+        },
+        coordinates: [Number],
+        address: String,
+        description: String,
+        day: Number
+      }
+    ],
+    // bandMembers: Array
+    bandMembers: [
+      {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User'
+      }
+    ]
   },
   {
     toJSON: { virtuals: true },
@@ -89,11 +121,27 @@ bandSchema.virtual('durationWeeks').get(function() {
   return this.duration / 7;
 });
 
-// DOCUMENT MIDDLEWARE: runs before .save() and .create()
+// Use Virual populate reviews on a band
+bandSchema.virtual('reviews', {
+  ref: 'Review',
+  foreignField: 'band',
+  localField: '_id'
+})
+
+// ---- DOCUMENT MIDDLEWARE: runs before .save() and .create() ---- //
+
 bandSchema.pre('save', function(next) {
   this.slug = slugify(this.name, { lower: true });
   next();
 });
+
+// Save Embedded band Memebebers IDs in the Band Model
+// bandSchema.pre('save', async function(next) {
+//  const bandMembersPromises = this.bandMembers.map(async id => await User.findById(id));
+//  const bandMembers = await promises.all(bandMembersPromises);
+
+//   next();
+// });
 
 bandSchema.pre('save', function(next) {
   // console.log('Will save document...');
@@ -105,7 +153,8 @@ bandSchema.post('save', function(doc, next) {
   next();
 });
 
-// QUERY MIDDLEWARE
+// ---------- QUERY MIDDLEWARE ---------- //
+
 // bandSchema.pre('find', function(next) {
 bandSchema.pre(/^find/, function(next) {
   this.find({ secretBand: { $ne: true } });
@@ -114,12 +163,23 @@ bandSchema.pre(/^find/, function(next) {
   next();
 });
 
+// Populate Bnad Memeber in a Bnad
+bandSchema.pre(/^find/, function(next) {
+  this.populate({
+    path: 'bandMembers',
+    select: '-__v'
+  });
+
+  next();
+})
+
 bandSchema.post(/^find/, function(docs, next) {
   console.log(`Query took ${Date.now() - this.start} milliseconds!`);
   next();
 });
 
-// AGGREGATION MIDDLEWARE
+// ---------- AGGREGATION MIDDLEWARE ---------- //
+
 bandSchema.pre('aggregate', function(next) {
   this.pipeline().unshift({ $match: { secretBand: { $ne: true } } });
 

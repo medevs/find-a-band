@@ -1,8 +1,9 @@
 const Band = require('./../models/bandModel');
 
-const APIFeatures = require('./../utils/apiFeatures');
+// const APIFeatures = require('./../utils/apiFeatures');
 const catchAsync = require('./../utils/catchAsync');
 const appError = require('./../utils/appError');
+const factory = require('./handlerFactory');
 
 // Get Top Sheap 6 bands
 exports.aliasTopBands = (req, res, next) => {
@@ -12,83 +13,11 @@ exports.aliasTopBands = (req, res, next) => {
   next();
 };
 
-// Get All Bands
-exports.getAllBands = catchAsync(async (req, res, next) => {
-  // EXECUTE QUERY
-  const features = new APIFeatures(Band.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields()
-    .paginate();
-  const bands = await features.query;
-
-  // SEND RESPONSE
-  res.status(200).json({
-    status: 'success',
-    results: bands.length,
-    data: {
-      bands
-    }
-  });
-});
-
-exports.getBand = catchAsync(async (req, res, next) => {
-  const band = await Band.findById(req.params.id);
-  // Band.findOne({ _id: req.params.id })
-
-  if(!band) {
-    return next(new appError('No Band with that ID!', 404));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      band
-    }
-  });
-});
-
-exports.createBand = catchAsync(async (req, res, next) => {
-  const newBand = await Band.create(req.body);
-
-  res.status(201).json({
-    status: 'success',
-    data: {
-      band: newBand
-    }
-  });
-});
-
-exports.updateBand = catchAsync(async (req, res, next) => {
-  const band = await Band.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true
-  });
-
-  if(!band) {
-    return next(new appError('No Band with that ID!', 404));
-  }
-
-  res.status(200).json({
-    status: 'success',
-    data: {
-      band
-    }
-  });
-});
-
-exports.deleteBand = catchAsync(async (req, res, next) => {
-  const band = await Band.findByIdAndDelete(req.params.id);
-
-  if(!band) {
-    return next(new appError('No Band with that ID!', 404));
-  }
-
-  res.status(204).json({
-    status: 'success',
-    data: null
-  });
-});
+exports.getAllBands = factory.getAll(Band);
+exports.getBand = factory.getOne(Band, { path: 'reviews' });
+exports.createBand = factory.createOne(Band);
+exports.updateBand = factory.updateOne(Band);
+exports.deleteBand = factory.deleteOne(Band);
 
 // Get Band Statistics
 exports.getBandStats = catchAsync(async (req, res, next) => {
