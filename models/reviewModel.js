@@ -34,6 +34,7 @@ const reviewSchema = new mongoose.Schema(
   }
 );
 
+// prevent duplicate reviews
 reviewSchema.index({ band: 1, user: 1 }, { unique: true });
 
 // populate reviews in a band 
@@ -46,6 +47,7 @@ reviewSchema.pre(/^find/, function(next) {
   next();
 });
 
+// Calculate average rating for a certain band (Static Method)
 reviewSchema.statics.calcAverageRatings = async function(bandId) {
   const stats = await this.aggregate([
     {
@@ -61,6 +63,7 @@ reviewSchema.statics.calcAverageRatings = async function(bandId) {
   ]);
   // console.log(stats);
 
+  // Save Changes to the Band Document
   if (stats.length > 0) {
     await Bnad.findByIdAndUpdate(bandId, {
       ratingsQuantity: stats[0].nRating,
@@ -74,22 +77,23 @@ reviewSchema.statics.calcAverageRatings = async function(bandId) {
   }
 };
 
+// Call The calcAverageRatings Function when add a new rating
 reviewSchema.post('save', function() {
   // this points to current review
-  this.constructor.calcAverageRatings(this.band);
+  this.constructor.calcAverageRatings(this.band); // Call Static method in the constructor
 });
 
 // 
 // findByIdAndDelete & findByIdAndUpdate
 reviewSchema.pre(/^findOneAnd/, async function(next) {
-  this.r = await this.findOne();
-  // console.log(this.r);
+  this.rev = await this.findOne();
+  // console.log(this.rev);
   next();
 });
 
 reviewSchema.post(/^findOneAnd/, async function() {
-  // await this.findOne(); does NOT work here, query has already executed
-  await this.r.constructor.calcAverageRatings(this.r.band);
+  // "await this.findOne();" does NOT work here, query has already executed
+  await this.rev.constructor.calcAverageRatings(this.r.band); // Call Static method in the constructor
 });
 
 const Review = mongoose.model('Review', reviewSchema);

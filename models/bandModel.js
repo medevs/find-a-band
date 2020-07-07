@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const slugify = require('slugify');
-const User = require('./userModel');
+// const User = require('./userModel');
 // const validator = require('validator');
 
 const bandSchema = new mongoose.Schema(
@@ -35,7 +35,8 @@ const bandSchema = new mongoose.Schema(
       type: Number,
       default: 4.5,
       min: [1, 'Rating must be above 1.0'],
-      max: [5, 'Rating must be below 5.0']
+      max: [5, 'Rating must be below 5.0'],
+      set: val => Math.round(val * 10) / 10
     },
     ratingsQuantity: {
       type: Number,
@@ -107,7 +108,7 @@ const bandSchema = new mongoose.Schema(
     bandMembers: [
       {
         type: mongoose.Schema.ObjectId,
-        ref: 'User'
+        ref: 'BandMembers'
       }
     ]
   },
@@ -116,6 +117,11 @@ const bandSchema = new mongoose.Schema(
     toObject: { virtuals: true }
   }
 );
+
+// bandSchema.index({price: 1});
+bandSchema.index({price: 1, ratingsAverage: -1, gener: -1});
+bandSchema.index({slug: 1});
+tourSchema.index({ startLocation: '2dsphere' });
 
 bandSchema.virtual('durationWeeks').get(function() {
   return this.duration / 7;
@@ -180,12 +186,12 @@ bandSchema.post(/^find/, function(docs, next) {
 
 // ---------- AGGREGATION MIDDLEWARE ---------- //
 
-bandSchema.pre('aggregate', function(next) {
-  this.pipeline().unshift({ $match: { secretBand: { $ne: true } } });
+// bandSchema.pre('aggregate', function(next) {
+//   this.pipeline().unshift({ $match: { secretBand: { $ne: true } } });
 
-  console.log(this.pipeline());
-  next();
-});
+//   console.log(this.pipeline());
+//   next();
+// });
 
 const Band = mongoose.model('Band', bandSchema);
 

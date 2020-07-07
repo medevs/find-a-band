@@ -5,10 +5,10 @@ const reviewRouter = require('./../routes/reviewRoutes');
 
 const router = express.Router();
 
-// POST /tour/234fad4/reviews
-// GET /tour/234fad4/reviews
+// POST /band/234fad4/reviews
+// GET /band/234fad4/reviews
 
-router.use('/:tourId/reviews', reviewRouter);
+router.use('/:bandId/reviews', reviewRouter);
 
 router
   .route('/top-6-cheap')
@@ -20,6 +20,15 @@ router.route('/monthly-plan/:year').get(
   authController.protect,
   authController.restrictTo('admin'),
   bandController.getMonthlyPlan);
+
+// Find a bands in certain area 
+router
+  .route('/bands-within/:distance/center/:latlng/unit/:unit')
+  .get(bandController.getBandsWithin);
+  // /bands-within?distance=233&center=-40,45&unit=mi (or Km)
+  // /bands-within/233/center/-40,45/unit/mi (or Km)
+
+router.route('/distances/:latlng/unit/:unit').get(bandController.getDistances);
 
 router
   .route('/')
